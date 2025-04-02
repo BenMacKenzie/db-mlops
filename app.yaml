@@ -6,3 +6,5 @@ command: [
 env:
   - name: "DATABRICKS_WAREHOUSE_ID"
     valueFrom: "sql-warehouse"
+  - name: "GRADIO_ROOT_PATH"
+    value: "https://bmac-mlops-1444828305810485.aws.databricksapps.com"
