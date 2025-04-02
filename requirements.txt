@@ -1,0 +1,8 @@
+databricks-sql-connector==4.0.0
+databricks-sdk>=0.18.0
+numpy==1.26.4
+pandas>=2.2.0
+gradio>=4.19.2
+pyarrow
+psycopg2-binary>=2.9.9
+pyyaml>=6.0.1
