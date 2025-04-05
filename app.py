@@ -6,6 +6,7 @@ import pandas as pd
 from hello_world import create_hello_world_tab
 from sales_receipts import create_sales_receipts_tab
 from databricks_jobs import create_databricks_jobs_tab
+from project_form import create_project_form_tab
 
 # Ensure environment variable is set correctly
 assert os.getenv('DATABRICKS_WAREHOUSE_ID'), "DATABRICKS_WAREHOUSE_ID must be set in app.yaml."
@@ -67,6 +68,7 @@ def create_app():
         create_hello_world_tab()
         create_sales_receipts_tab()
         create_databricks_jobs_tab()
+        create_project_form_tab()
         
         # Taxi Data tab
         with gr.Tab("Taxi Data"):

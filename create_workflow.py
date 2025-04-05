@@ -45,7 +45,7 @@ def create_training_job(workspace_client, job_name, notebook_path, experiment_na
     )
 
 # Initialize the Databricks Workspace client
-job_id = "1333963516113230"
+job_id = "73220154155213"
 workspace_client = WorkspaceClient()
 
 # Check if job exists
@@ -57,9 +57,9 @@ except Exception as e:
     # If job doesn't exist, create it
     serverless_job = create_training_job(
         workspace_client=workspace_client,
-        job_name="DB Trainer 6",
+        job_name="DB Trainer test_6",
         notebook_path="notebooks/01_Build_Model",
-        experiment_name="titanic_5",
+        experiment_name="test_6",
         target="Survived",
         table_name="benmackenzie_catalog.default.titanic",
         git_url="https://github.com/BenMacKenzie/db-model-trainer",
