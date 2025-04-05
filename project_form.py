@@ -5,6 +5,21 @@ import os
 from databricks.sdk import WorkspaceClient
 from databricks.sdk.service.jobs import NotebookTask, Task, GitSource, GitProvider
 import requests
+from config_manager import ConfigManager
+
+# Initialize configuration manager
+config = ConfigManager()
+
+def get_db_connection():
+    """Create a database connection using configuration settings."""
+    db_config = config.get_database_config()
+    return psycopg2.connect(
+        dbname=db_config.get('database', 'demo'),  # fallback to 'demo' for backward compatibility
+        user=db_config.get('user'),
+        password=db_config.get('password'),
+        host=db_config.get('host'),
+        port=db_config.get('port', 5432)
+    )
 
 def get_experiment_runs(experiment_id, host, token):
     """Get all runs for a specific experiment."""
@@ -32,11 +47,12 @@ def get_experiment_runs(experiment_id, host, token):
 def get_experiment_details(project_name):
     """Get experiment details and runs."""
     try:
-        host = os.getenv('DATABRICKS_HOST')
-        token = os.getenv('DATABRICKS_TOKEN')
+        databricks_config = config.get_databricks_config()
+        host = databricks_config.get('host')
+        token = databricks_config.get('token')
         
         if not host or not token:
-            return "Error: DATABRICKS_HOST and DATABRICKS_TOKEN environment variables must be set"
+            return "Error: Databricks host and token must be configured in environment settings"
         
         # Format experiment name
         experiment_name = f"/Users/ben.mackenzie@databricks.com/{project_name}"
@@ -96,46 +112,10 @@ def get_experiment_details(project_name):
 def create_project_form_tab():
     """Create a tab with a form to collect project information."""
     
-    def check_and_update_table():
-        """Check if job_id column exists and add it if not."""
-        try:
-            conn = psycopg2.connect(
-                dbname="demo",
-                user="ben.mackenzie",
-                host="localhost",
-                port="5432"
-            )
-            
-            with conn.cursor() as cur:
-                # Check if job_id column exists
-                cur.execute("""
-                    SELECT column_name 
-                    FROM information_schema.columns 
-                    WHERE table_name = 'projects' 
-                    AND column_name = 'job_id'
-                """)
-                if not cur.fetchone():
-                    # Add job_id column if it doesn't exist
-                    cur.execute("ALTER TABLE projects ADD COLUMN job_id VARCHAR(255)")
-                    conn.commit()
-                    print("Added job_id column to projects table")
-            
-            conn.close()
-        except Exception as e:
-            print(f"Error checking/updating table structure: {str(e)}")
-    
-    # Check and update table structure when the tab is created
-    check_and_update_table()
-    
     def get_projects():
         """Fetch all projects from the database."""
         try:
-            conn = psycopg2.connect(
-                dbname="demo",
-                user="ben.mackenzie",
-                host="localhost",
-                port="5432"
-            )
+            conn = get_db_connection()
             
             with conn.cursor() as cur:
                 cur.execute("SELECT id, project_name FROM projects ORDER BY project_name")
@@ -153,12 +133,7 @@ def create_project_form_tab():
         """Fetch details of a specific project."""
         try:
             project_id = project_str.split(":")[0]
-            conn = psycopg2.connect(
-                dbname="demo",
-                user="ben.mackenzie",
-                host="localhost",
-                port="5432"
-            )
+            conn = get_db_connection()
             
             with conn.cursor() as cur:
                 cur.execute("SELECT project_name, table_name, target, job_id FROM projects WHERE id = %s", (project_id,))
@@ -174,12 +149,7 @@ def create_project_form_tab():
     def delete_project(project_id):
         """Delete a project from the database."""
         try:
-            conn = psycopg2.connect(
-                dbname="demo",
-                user="ben.mackenzie",
-                host="localhost",
-                port="5432"
-            )
+            conn = get_db_connection()
             
             with conn.cursor() as cur:
                 cur.execute("DELETE FROM projects WHERE id = %s", (project_id,))
@@ -202,12 +172,7 @@ def create_project_form_tab():
             workspace_client = WorkspaceClient()
             
             # Check if job_id exists in the database
-            conn = psycopg2.connect(
-                dbname="demo",
-                user="ben.mackenzie",
-                host="localhost",
-                port="5432"
-            )
+            conn = get_db_connection()
             
             with conn.cursor() as cur:
                 cur.execute("SELECT job_id FROM projects WHERE id = %s", (project_id,))
@@ -274,12 +239,7 @@ def create_project_form_tab():
     def save_project_info(project_name, table_name, target, project_id=None):
         """Save project information to PostgreSQL database."""
         try:
-            conn = psycopg2.connect(
-                dbname="demo",
-                user="ben.mackenzie",
-                host="localhost",
-                port="5432"
-            )
+            conn = get_db_connection()
             
             with conn.cursor() as cur:
                 # Create table if it doesn't exist
@@ -316,8 +276,8 @@ def create_project_form_tab():
         except Exception as e:
             return f"Error saving project information: {str(e)}"
     
-    with gr.Tab("Project Form"):
-        gr.Markdown("## Project Management")
+    with gr.Tab("Project"):
+        
         
         with gr.Row():
             # Left column - Project List
@@ -332,12 +292,11 @@ def create_project_form_tab():
                 gr.Markdown("### Actions")
                 with gr.Row():
                     create_btn = gr.Button("New Project")
-                    clear_btn = gr.Button("Clear Form")
                     delete_btn = gr.Button("Delete Project")
             
             # Right column - Form
             with gr.Column(scale=2):
-                gr.Markdown("### Project Details")
+                gr.Markdown("### Details")
                 project_name = gr.Textbox(label="Project Name", placeholder="Enter project name")
                 table_name = gr.Textbox(label="Table Name", placeholder="Enter table name")
                 target = gr.Textbox(label="Target", placeholder="Enter target column name")
@@ -348,7 +307,7 @@ def create_project_form_tab():
                 with gr.Row():
                     update_btn = gr.Button("Update Project")
                     train_btn = gr.Button("Train Model")
-                    view_experiment_btn = gr.Button("View Experiment")
+                    view_experiment_btn = gr.Button("View Model Runs")
                 
                 output = gr.Textbox(label="Status")
                 experiment_output = gr.Textbox(label="Experiment Details", lines=10)
@@ -377,11 +336,7 @@ def create_project_form_tab():
             outputs=[project_id, project_name, table_name, target]
         )
         
-        clear_btn.click(
-            fn=clear_form,
-            inputs=[],
-            outputs=[project_id, project_name, table_name, target]
-        )
+       
         
         update_btn.click(
             fn=save_project_info,

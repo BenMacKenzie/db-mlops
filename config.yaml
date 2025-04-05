@@ -1,0 +1,11 @@
+# Configuration
+database:
+  host: ${DB_HOST}
+  port: 5432
+  database: demo
+  user: ${POSTGRES_USER}
+  password: ${POSTGRES_PASSWORD}
+databricks:
+  host: ${DATABRICKS_HOST}
+  warehouse_id: ${DATABRICKS_WAREHOUSE_ID}
+  token: ${DATABRICKS_TOKEN} 
